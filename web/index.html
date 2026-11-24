@@ -3,6 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <!-- UI scale. The layout is designed for a ~760x360 CSS-px landscape screen
+       (realme 3). On anything smaller the dashboard is laid out at a larger
+       size and scaled down as one block (see .dashboard-shell in style.css).
+       Re-measured on resize, fullscreen and rotation. ?ui=0.85 shrinks it
+       further, ?ui=1.1 grows it (remembered per device); ?ui=reset clears it. -->
+  <script>
+    (function () {
+      var DESIGN_W = 760, DESIGN_H = 360, KEY = "desko:ui", ui = 1;
+      try {
+        var q = /[?&]ui=([0-9.]+|reset)/.exec(location.search);
+        if (q && q[1] === "reset") localStorage.removeItem(KEY);
+        else if (q) localStorage.setItem(KEY, q[1]);
+        ui = parseFloat(localStorage.getItem(KEY)) || 1;
+      } catch (e) {}
+      ui = Math.max(0.4, Math.min(2, ui));
+      var root = document.documentElement;
+      function apply() {
+        var w = window.innerWidth || root.clientWidth, h = window.innerHeight || root.clientHeight;
+        if (!w || !h) return;
+        var s = Math.min(1, w / DESIGN_W, h / DESIGN_H) * ui;
+        root.style.setProperty("--ui-s", s.toFixed(4));
+        root.style.setProperty("--app-w", w + "px");
+        root.style.setProperty("--app-h", h + "px");
+        root.style.setProperty("--vw", (w / s / 100).toFixed(3) + "px");
+        root.style.setProperty("--vh", (h / s / 100).toFixed(3) + "px");
+        window.DESKO_UI_SCALE = s;
+      }
+      apply();
+      var t = null;
+      function later() { apply(); clearTimeout(t); t = setTimeout(apply, 250); }  // Android reports the final size late
+      window.addEventListener("resize", later);
+      window.addEventListener("orientationchange", later);
+      document.addEventListener("fullscreenchange", later);
+      document.addEventListener("webkitfullscreenchange", later);
+    })();
+  </script>
   <meta name="theme-color" content="#111511">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -251,6 +287,7 @@
           <div class="focus-ring-wrap">
             <svg class="focus-ring" viewBox="0 0 120 120" aria-hidden="true">
               <circle class="focus-ring-bg" cx="60" cy="60" r="54"/>
+              <circle class="focus-ring-glow" id="f-ring-glow" cx="60" cy="60" r="54"/>
               <circle class="focus-ring-fg" id="f-ring" cx="60" cy="60" r="54"/>
             </svg>
             <div class="focus-time">
@@ -292,6 +329,15 @@
               <button class="preset-btn" data-adj="break" data-d="1" type="button">+</button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- APPS (manual only: swipe to it; not part of the auto rotation) -->
+      <section class="scene apps-scene" data-scene="apps" aria-label="App launcher">
+        <div class="panel apps-panel">
+          <div class="panel-label"><span>APPS.LAUNCH</span><span id="a-meta">—</span></div>
+          <div class="apps-grid" id="a-grid"></div>
+          <p class="apps-empty" id="a-empty" hidden>No apps configured. Add an <b>"apps"</b> list to config.json on the PC.</p>
         </div>
       </section>
 
@@ -350,6 +396,7 @@
   <script src="/static/js/scenes/stats.js"></script>
   <script src="/static/js/scenes/dev.js"></script>
   <script src="/static/js/scenes/focus.js"></script>
+  <script src="/static/js/scenes/apps.js"></script>
   <script src="/static/js/scenes/launcher.js"></script>
   <script>Desko.init();</script>
 </body>

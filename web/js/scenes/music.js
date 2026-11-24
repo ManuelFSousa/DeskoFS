@@ -179,7 +179,10 @@ Desko.scenes.music = (function () {
       if (!marqueeBox) return;
       var visibleWidth = marqueeBox.clientWidth;
       // One track's natural width (we want to scroll it past the visible area).
-      var trackWidth = spans[0].getBoundingClientRect().width;
+      // offsetWidth (layout px) rather than getBoundingClientRect (screen px):
+      // the dashboard is CSS-scaled on small phones, and clientWidth above is
+      // in layout px too, so both sides of the comparison must match.
+      var trackWidth = spans[0].offsetWidth;
       // Overflow condition: one track's text alone doesn't fit.
       if (trackWidth <= visibleWidth + 1) {
         return; // no overflow → no animation

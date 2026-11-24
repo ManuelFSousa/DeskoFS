@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 log = logging.getLogger("desko.state")
 
-SCENES = ("idle", "music", "stats", "dev", "focus")
+SCENES = ("idle", "music", "stats", "dev", "focus", "apps")  # apps: manual only, not in the auto rotation
 
 
 def _detect_ip() -> str:

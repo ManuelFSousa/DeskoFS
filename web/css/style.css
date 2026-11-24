@@ -14,6 +14,7 @@
 }
 
 :root {
+  --ui-s: 1; --app-w: 100vw; --app-h: 100vh; --vw: 1vw; --vh: 1vh;
   color-scheme: dark;
   --background: #111511;
   --foreground: #d9e1d7;
@@ -40,7 +41,11 @@ img { display: block; }
 /* z-index:0 (with position:relative) makes this its own stacking context, so
    #m-bg's negative z-index below is guaranteed to stay behind everything
    else in the page regardless of what's above it in the document. */
-.dashboard-shell, .launcher-shell { position: relative; z-index: 0; width: 100vw; height: 100dvh; min-height: 360px; overflow: hidden; background: var(--background); }
+/* UI scale: index.html measures the real viewport (window.innerWidth/Height,
+   re-measured on resize / fullscreen / rotation) and sets --app-w/--app-h and
+   --ui-s. The shell is laid out at the design size and scaled down as one
+   block, so the layout never depends on the browser's viewport-meta handling. */
+.dashboard-shell, .launcher-shell { position: relative; z-index: 0; width: calc(var(--app-w) / var(--ui-s)); height: calc(var(--app-h) / var(--ui-s)); transform: scale(var(--ui-s)); transform-origin: 0 0; overflow: hidden; background: var(--background); }
 .dashboard-shell::after, .launcher-shell::after { content: ''; pointer-events: none; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(130 245 155 / 0.018) 3px 4px); z-index: 20; }
 /* Ambient background (music scene only): current album art, blurred +
    darkened, filling the *whole page* — including behind the system bar, not
@@ -62,7 +67,7 @@ img { display: block; }
    tall enough to clear it by accident; without that rail the bottom edge was
    getting cut on phones with a gesture-nav inset. */
 .scene-frame {
-  height: calc(100dvh - 52px);
+  height: calc(100% - 52px);
   padding: 10px max(14px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
 }
 .scene { height: 100%; animation: scene-in .28s ease-out; display: none !important; }
@@ -134,15 +139,15 @@ body.is-fs .fs-btn .fs-icon-collapse { display: block; }
 
 /* ============== IDLE ============== */
 .idle-scene { display: grid; grid-template-columns: 1.7fr 1fr; grid-template-rows: 1fr auto auto; gap: 10px; }
-.clock-block { grid-row: 1 / 4; border: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 24px 5vw; cursor: pointer; text-align: left; }
+.clock-block { grid-row: 1 / 4; border: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 24px calc(5 * var(--vw)); cursor: pointer; text-align: left; }
 .terminal-prompt { color: var(--primary); font-size: 10px; letter-spacing: .14em; }
-.clock { display: flex; align-items: baseline; color: var(--foreground); font-size: clamp(66px, 13vw, 150px); font-weight: 700; line-height: .95; letter-spacing: -.06em; }
+.clock { display: flex; align-items: baseline; color: var(--foreground); font-size: clamp(66px, calc(13 * var(--vw)), 150px); font-weight: 700; line-height: .95; letter-spacing: -.06em; }
 .clock small { margin-left: 10px; color: var(--primary); font-size: .2em; align-self: flex-start; margin-top: .18em; letter-spacing: 0; }
 .clock .clock-tz { margin-left: 12px; color: var(--muted-foreground); font-size: .16em; font-style: normal; font-weight: 600; letter-spacing: .12em; align-self: flex-start; margin-top: .34em; }
-.date { color: var(--muted-foreground); margin-top: 14px; font-size: clamp(12px, 1.5vw, 17px); letter-spacing: .14em; }
+.date { color: var(--muted-foreground); margin-top: 14px; font-size: clamp(12px, calc(1.5 * var(--vw)), 17px); letter-spacing: .14em; }
 /* London: a compact bordered chip -- clearly readable (time in foreground)
    but visually secondary to the big IST clock above. */
-.clock-alt { margin-top: 16px; align-self: flex-start; display: inline-flex; align-items: center; gap: 9px; padding: 8px 14px; border: 1px solid var(--border); color: var(--muted-foreground); font-size: clamp(12px, 1.5vw, 16px); letter-spacing: .14em; }
+.clock-alt { margin-top: 16px; align-self: flex-start; display: inline-flex; align-items: center; gap: 9px; padding: 8px 14px; border: 1px solid var(--border); color: var(--muted-foreground); font-size: clamp(12px, calc(1.5 * var(--vw)), 16px); letter-spacing: .14em; }
 .clock-alt svg { width: 15px; height: 15px; color: var(--accent); flex: 0 0 auto; }
 .clock-alt b { color: var(--foreground); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 .double-tap { margin-top: 18px; color: var(--primary); font-size: 8px; opacity: .6; letter-spacing: .1em; }
@@ -188,7 +193,7 @@ body.is-fs .fs-btn .fs-icon-collapse { display: block; }
    clipped by the panel's overflow:hidden — that was the actual cause of the
    "bottom is cutting" report, not (only) a safe-area issue. */
 .album-wrap { display: flex; flex-direction: column; justify-content: center; gap: 8px; min-width: 0; flex: 1 1 auto; min-height: 0; }
-.album-art { position: relative; aspect-ratio: 1; max-height: 26vh; min-height: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--border); background: var(--secondary); color: var(--primary); }
+.album-art { position: relative; aspect-ratio: 1; max-height: calc(26 * var(--vh)); min-height: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--border); background: var(--secondary); color: var(--primary); }
 .album-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
 .album-art .album-note { width: 32%; height: 32%; filter: drop-shadow(0 0 20px rgb(130 245 155 / .35)); z-index: 1; }
 .album-art .album-orbit { position: absolute; width: 76%; aspect-ratio: 1; border: 1px solid var(--primary); border-radius: 50%; box-shadow: inset 0 0 0 18px var(--card), inset 0 0 0 19px var(--border); animation: rotate 14s linear infinite; z-index: 2; pointer-events: none; }
@@ -204,7 +209,7 @@ body.is-fs .fs-btn .fs-icon-collapse { display: block; }
    overflows the panel. The .marquee span is the clip; .marquee-content is
    the inner flex track with two identical spans. JS toggles the .animating
    class (which starts the keyframe) and sets --dur based on overflow width. */
-.track h2 { margin: 4px 0 0; font-size: clamp(18px, 2.2vw, 30px); line-height: 1.05; letter-spacing: -.02em; color: var(--foreground); overflow: hidden; }
+.track h2 { margin: 4px 0 0; font-size: clamp(18px, calc(2.2 * var(--vw)), 30px); line-height: 1.05; letter-spacing: -.02em; color: var(--foreground); overflow: hidden; }
 .track h2 .marquee { display: block; overflow: hidden; }
 .track h2 .marquee-content { display: inline-flex; will-change: transform; }
 .track h2 .marquee-content.animating { animation: marquee-scroll var(--dur, 12s) linear infinite; }
@@ -254,7 +259,7 @@ body.is-fs .fs-btn .fs-icon-collapse { display: block; }
 .transport { position: relative; }
 .volume-pop { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-  width: min(320px, 80vw); background: var(--card); border: 1px solid var(--border);
+  width: min(320px, calc(80 * var(--vw))); background: var(--card); border: 1px solid var(--border);
   border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / .55); z-index: 30; }
 .volume-pop[hidden] { display: none; }
 /* Little pointer at the bottom of the popover toward the speaker button. */
@@ -298,7 +303,7 @@ body.is-fs .fs-btn .fs-icon-collapse { display: block; }
    visible lines, 4x/s) and was the main cause of the switch-time jank on the
    Realme 3. The active glow still appears — it just snaps in with the color
    change instead of ramping, which is imperceptible at this scale. */
-.lyrics-stack p { margin: 0; line-height: 1.45; color: var(--muted-foreground); font-size: clamp(16px, 2vw, 24px); padding: .5em 0; transition: color .15s ease-out, opacity .15s ease-out, transform .15s cubic-bezier(.2,.7,.2,1); transform-origin: left center; overflow-wrap: anywhere; }
+.lyrics-stack p { margin: 0; line-height: 1.45; color: var(--muted-foreground); font-size: clamp(16px, calc(2 * var(--vw)), 24px); padding: .5em 0; transition: color .15s ease-out, opacity .15s ease-out, transform .15s cubic-bezier(.2,.7,.2,1); transform-origin: left center; overflow-wrap: anywhere; }
 .lyrics-stack p.active {
   color: var(--primary);
   font-weight: 700;
@@ -307,7 +312,7 @@ body.is-fs .fs-btn .fs-icon-collapse { display: block; }
   transform: none;
 }
 .lyrics-stack p.plain { color: var(--foreground); opacity: .9; white-space: pre-wrap; line-height: 1.6; padding: .35em 0; }
-.lyrics-stack p.none { color: var(--muted-foreground); font-style: italic; opacity: .55; font-size: 1.5vh; padding: 1em 0; text-align: center; }
+.lyrics-stack p.none { color: var(--muted-foreground); font-style: italic; opacity: .55; font-size: calc(1.5 * var(--vh)); padding: 1em 0; text-align: center; }
 .lyrics-stack p.spacer { display: block; height: .6em; }
 
 /* ============== STATS ============== */
@@ -321,7 +326,7 @@ body.is-fs .fs-btn .fs-icon-collapse { display: block; }
 .game-meta strong { color: var(--foreground); font-size: 13px; }
 .meters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .meter { display: flex; flex-direction: column; justify-content: space-between; }
-.meter strong { font-size: clamp(30px, 5vw, 64px); line-height: 1; color: var(--primary); letter-spacing: -.08em; font-weight: 600; }
+.meter strong { font-size: clamp(30px, calc(5 * var(--vw)), 64px); line-height: 1; color: var(--primary); letter-spacing: -.08em; font-weight: 600; }
 .meter strong.amber { color: var(--accent); }
 .meter small { font-size: .25em; color: var(--muted-foreground); margin-left: 4px; font-weight: 400; }
 .meter.warning strong { color: var(--accent); }
@@ -371,7 +376,7 @@ span.head-icon svg, span.proc-icon svg { width: 100%; height: 100%; }
 .dev-scene { display: grid; grid-template-columns: 1.1fr 1fr .9fr; grid-template-rows: 1fr 44px; gap: 10px; }
 .repo { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .repo > .repo-ico { font-size: 38px; color: var(--primary); }
-.repo h2 { margin: 4px 0; font-size: clamp(20px, 2.4vw, 33px); color: var(--foreground); letter-spacing: -.01em; word-break: break-word; }
+.repo h2 { margin: 4px 0; font-size: clamp(20px, calc(2.4 * var(--vw)), 33px); color: var(--foreground); letter-spacing: -.01em; word-break: break-word; }
 .path { color: var(--muted-foreground); font-size: 9px; word-break: break-all; }
 .branch { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--secondary); color: var(--primary); font-size: 10px; }
 .branch .b-ico { font-size: 13px; }
@@ -418,16 +423,20 @@ span.head-icon svg, span.proc-icon svg { width: 100%; height: 100%; }
    taps pass through to the buttons (the .focus-time label already does this). */
 .focus-ring { width: 100%; height: 100%; transform: rotate(-90deg); pointer-events: none; }
 .focus-ring-bg { fill: none; stroke: var(--secondary); stroke-width: 4; }
-.focus-ring-fg { fill: none; stroke: var(--primary); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset .3s linear, stroke .3s; filter: drop-shadow(0 0 6px rgb(130 245 155 / .4)); }
-.focus-scene.is-break .focus-ring-fg { stroke: var(--accent); filter: drop-shadow(0 0 6px rgb(230 173 87 / .4)); }
+/* No CSS filter on the SVG circles: drop-shadow on an SVG shape whose dash
+   animates every tick renders broken on older Android Chrome (95). The glow is
+   a wider, translucent copy of the arc underneath instead. */
+.focus-ring-fg { fill: none; stroke: var(--primary); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset .3s linear, stroke .3s; }
+.focus-ring-glow { fill: none; stroke: var(--primary); stroke-width: 11; stroke-linecap: round; opacity: .16; transition: stroke-dashoffset .3s linear, stroke .3s; }
+.focus-scene.is-break .focus-ring-fg, .focus-scene.is-break .focus-ring-glow { stroke: var(--accent); }
 .focus-time { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
-.focus-time span { font-size: clamp(28px, 7vh, 56px); font-weight: 700; letter-spacing: -.03em; line-height: 1; color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.focus-time small { color: var(--muted-foreground); font-size: clamp(8px, 1.4vh, 11px); letter-spacing: .2em; margin-top: 8px; }
+.focus-time span { font-size: clamp(28px, calc(7 * var(--vh)), 56px); font-weight: 700; letter-spacing: -.03em; line-height: 1; color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.focus-time small { color: var(--muted-foreground); font-size: clamp(8px, calc(1.4 * var(--vh)), 11px); letter-spacing: .2em; margin-top: 8px; }
 .focus-scene.is-break .focus-time small { color: var(--accent); }
 .focus-controls { flex: 0 0 auto; display: flex; align-items: center; gap: 16px; }
 .focus-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .focus-cycles { display: flex; flex-direction: column; gap: 4px; }
-.focus-cycles strong { font-size: clamp(32px, 6vw, 54px); color: var(--primary); font-weight: 700; line-height: 1; letter-spacing: -.04em; }
+.focus-cycles strong { font-size: clamp(32px, calc(6 * var(--vw)), 54px); color: var(--primary); font-weight: 700; line-height: 1; letter-spacing: -.04em; }
 .focus-pips { display: flex; gap: 7px; margin: 6px 0 2px; }
 .focus-pips i { width: 12px; height: 12px; border: 1px solid var(--border); border-radius: 50%; display: block; }
 .focus-pips i.on { background: var(--primary); border-color: var(--primary); box-shadow: 0 0 8px var(--primary); }
@@ -445,9 +454,9 @@ span.head-icon svg, span.proc-icon svg { width: 100%; height: 100%; }
    dashboard (handled in app.js). */
 .launcher-shell { position: fixed; inset: 0; z-index: 30; padding: max(12px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); background: var(--background); cursor: pointer; }
 .launcher-shell[hidden] { display: none; }
-.launcher-content { height: 100%; display: grid; grid-template-columns: .85fr 1.15fr; align-items: center; gap: 30px; border: 1px solid var(--border); background: var(--card); padding: 18px 4vw; }
+.launcher-content { height: 100%; display: grid; grid-template-columns: .85fr 1.15fr; align-items: center; gap: 30px; border: 1px solid var(--border); background: var(--card); padding: 18px calc(4 * var(--vw)); }
 .brand-copy { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; }
-.brand-copy h1 { margin: 0; font-size: clamp(56px, 9vw, 120px); line-height: .9; letter-spacing: -.1em; color: var(--foreground); }
+.brand-copy h1 { margin: 0; font-size: clamp(56px, calc(9 * var(--vw)), 120px); line-height: .9; letter-spacing: -.1em; color: var(--foreground); }
 .brand-copy h1 span { color: var(--primary); }
 .brand-copy h1 i { color: var(--primary); font-style: normal; animation: blink 1s steps(1) infinite; }
 .launcher-hint { color: var(--muted-foreground); font-size: 9px; letter-spacing: .22em; opacity: .6; }
@@ -463,7 +472,7 @@ span.head-icon svg, span.proc-icon svg { width: 100%; height: 100%; }
 .desk-leg.left { left: 10%; }
 .desk-leg.right { right: 10%; }
 .monitor { position: absolute; left: 32%; bottom: 30%; width: 35%; height: 53%; border: 6px solid var(--border); background: var(--background); z-index: 2; }
-.monitor-screen { height: 100%; padding: 10px; display: flex; flex-direction: column; gap: 7px; color: var(--muted-foreground); font-size: clamp(6px, .7vw, 9px); }
+.monitor-screen { height: 100%; padding: 10px; display: flex; flex-direction: column; gap: 7px; color: var(--muted-foreground); font-size: clamp(6px, calc(.7 * var(--vw)), 9px); }
 .monitor-screen .green { color: var(--primary); }
 .monitor-screen .cursor { animation: blink 1s steps(1) infinite; color: var(--primary); }
 .monitor > i { position: absolute; left: 48%; top: 100%; width: 8px; height: 24px; background: var(--border); }
@@ -501,13 +510,13 @@ span.head-icon svg, span.proc-icon svg { width: 100%; height: 100%; }
 
 /* small landscape — keep it usable on the realme 3 (720h is tight) */
 @media (max-height: 720px) {
-  .clock { font-size: clamp(64px, 14vh, 160px); }
+  .clock { font-size: clamp(64px, calc(14 * var(--vh)), 160px); }
   .lyrics-stack p { font-size: 18px; }
   .lyrics-stack p.active { font-size: 1.4em; }
   .meter strong { font-size: 38px; }
   .repo h2 { font-size: 22px; }
-  .brand-copy h1 { font-size: clamp(48px, 9vh, 96px); }
-  .album-art { max-height: 20vh; }
+  .brand-copy h1 { font-size: clamp(48px, calc(9 * var(--vh)), 96px); }
+  .album-art { max-height: calc(20 * var(--vh)); }
   .track { gap: 6px; }
   .track.panel { padding: 8px; }
 }
@@ -588,7 +597,8 @@ html.perf .lyrics-stack p { transition: color .12s linear; }
 /* 6. Width transitions re-run layout (not just paint) on every update, and
       the progress bar updates 4x/s. Snapping is imperceptible at this size. */
 html.perf .bar i { transition: none; }
-html.perf .focus-ring-fg, html.perf .focus-scene.is-break .focus-ring-fg { transition: none; }
+html.perf .focus-ring-fg, html.perf .focus-ring-glow, html.perf .focus-scene.is-break .focus-ring-fg { transition: none; }
+html.perf .focus-ring-glow { display: none; }
 
 /* 7. optimizeLegibility turns on kerning + ligature processing for every text
       layout. The lyrics stack re-lays-out constantly (the .active line takes a
@@ -602,3 +612,16 @@ html.perf body { text-rendering: optimizeSpeed; }
 .fps-hud { position: fixed; right: 4px; bottom: 4px; z-index: 999; padding: 3px 7px;
   background: rgb(0 0 0 / .72); color: var(--primary); font: 700 11px/1.3 ui-monospace, monospace;
   letter-spacing: .04em; pointer-events: none; }
+
+/* ---- apps scene (launcher grid) ---- */
+.apps-scene { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.apps-panel { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.apps-grid { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); grid-auto-rows: minmax(92px, auto); gap: 8px; align-content: start; }
+.app-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px 6px; border: 1px solid var(--border); background: var(--secondary); transition: border-color .15s, background .15s, transform .1s; min-width: 0; }
+.app-tile:active { transform: scale(.96); }
+.app-tile img, .app-tile .app-fallback { width: 44px; height: 44px; object-fit: contain; }
+.app-tile .app-fallback { display: grid; place-items: center; border: 1px solid var(--primary); color: var(--primary); font-size: 20px; font-weight: 700; }
+.app-tile span { font-size: 11px; letter-spacing: .04em; color: var(--foreground); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-tile.launched { border-color: var(--primary); background: rgb(130 245 155 / .12); }
+.app-tile.failed { border-color: var(--bad); }
+.apps-empty { color: var(--muted-foreground); font-size: 12px; margin: auto; text-align: center; }

@@ -1,8 +1,8 @@
 // Desko frontend core — v0 design port (system bar + scene frame + scene rail + launcher).
 // Plain script (no modules) for old Chromium on the realme 3.
 window.Desko = (function () {
-  var SCENES = ["idle", "music", "stats", "dev", "focus"];
-  var state = { scene: "idle", override: null, locked: false, info: null, media: null, lyrics: null, sys: null, weather: null, dev: null, procs: null, game: null, focus: null, volume: null };
+  var SCENES = ["idle", "music", "stats", "dev", "focus", "apps"];
+  var state = { scene: "idle", override: null, locked: false, info: null, media: null, lyrics: null, sys: null, weather: null, dev: null, procs: null, game: null, focus: null, volume: null, apps: null };
   var info = { hostname: "—", ip: "—" }; // from /api/info
   var scenes = {};
   var launcher = null;            // launcher module (optional)
@@ -86,6 +86,8 @@ window.Desko = (function () {
       if (scenes.stats && scenes.stats.onStateChange) try { scenes.stats.onStateChange(state); } catch (e) {}
     } else if (section === "weather") {
       if (scenes.idle && scenes.idle.onStateChange) try { scenes.idle.onStateChange(state); } catch (e) {}
+    } else if (section === "apps") {
+      if (scenes.apps && scenes.apps.onStateChange) try { scenes.apps.onStateChange(state); } catch (e) {}
     } else if (section === "dev") {
       if (scenes.dev && scenes.dev.onStateChange) try { scenes.dev.onStateChange(state); } catch (e) {}
     } else {
@@ -147,6 +149,10 @@ window.Desko = (function () {
       var shell = qs(".dashboard-shell"); if (shell) shell.classList.remove("offline");
       var t = el("sb-link-text"); if (t) t.textContent = "LINKED";
       startPing();
+      // Tell the server what screen we have (logged there, helps tune ?ui=).
+      send({ type: "hello", vw: window.innerWidth, vh: window.innerHeight,
+             sw: screen.width, sh: screen.height, dpr: window.devicePixelRatio || 1,
+             ui: window.DESKO_UI_SCALE || 1, ua: navigator.userAgent });
     };
     ws.onmessage = function (ev) { try { handle(JSON.parse(ev.data)); } catch (e) {} };
     ws.onclose = function () { onDisconnect(); scheduleReconnect(); };

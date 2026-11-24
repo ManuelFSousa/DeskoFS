@@ -173,7 +173,7 @@ Desko.scenes.stats = (function () {
   function setTempChip(chip, valEl, t) {
     if (!chip || !valEl) return;
     if (t == null) {
-      valEl.textContent = "LHM offline";
+      valEl.textContent = "no sensor";
       chip.classList.add("missing");
       chip.classList.remove("hot");
       return;

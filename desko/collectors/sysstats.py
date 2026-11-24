@@ -110,6 +110,77 @@ def _query_lhm(w):
     return {"cpuTempC": cpu_temp, "gpuTempC": gpu_temp, "gpuPercent": gpu_load}, len(temps) + len(loads)
 
 
+# --- Linux: hwmon temperatures through psutil ---------------------------------
+CPU_SENSORS = ("coretemp", "k10temp", "zenpower", "cpu_thermal", "cpu-thermal", "acpitz")
+GPU_SENSORS = ("amdgpu", "nouveau", "radeon")
+
+
+def _pick_temp(entries, preferred_labels=()):
+    """Highest-priority reading from one psutil sensor list."""
+    for want in preferred_labels:
+        for e in entries:
+            if (e.label or "").startswith(want) and e.current:
+                return e.current
+    vals = [e.current for e in entries if e.current]
+    return max(vals) if vals else None
+
+
+def _linux_temps() -> dict:
+    """CPU/GPU temps from /sys/class/hwmon. Blocking but cheap (sysfs reads)."""
+    try:
+        sensors = psutil.sensors_temperatures()
+    except Exception:
+        return {}
+    res = {}
+    for name in CPU_SENSORS:
+        if name in sensors:
+            t = _pick_temp(sensors[name], ("Package id", "Tctl", "Tdie"))
+            if t is not None:
+                res["cpuTempC"] = round(t, 1)
+                break
+    for name in GPU_SENSORS:
+        if name in sensors:
+            t = _pick_temp(sensors[name], ("edge", "junction"))
+            if t is not None:
+                res["gpuTempC"] = round(t, 1)
+                break
+    return res
+
+
+async def _nvidia_smi() -> dict:
+    """GPU temp + load from nvidia-smi (proprietary driver). Opt-in: on hybrid
+    laptops each call can wake the dGPU and cost battery."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "nvidia-smi", "--query-gpu=temperature.gpu,utilization.gpu",
+            "--format=csv,noheader,nounits",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        )
+        out, _ = await asyncio.wait_for(proc.communicate(), 5.0)
+        temp, load = out.decode().splitlines()[0].split(",")[:2]
+        return {"gpuTempC": float(temp), "gpuPercent": float(load)}
+    except Exception:
+        return {}
+
+
+async def _linux_temps_loop(shared, interval, use_nvidia_smi):
+    import shutil
+
+    nvsmi = use_nvidia_smi and shutil.which("nvidia-smi") is not None
+    logged = False
+    while True:
+        res = await asyncio.to_thread(_linux_temps)
+        if nvsmi:
+            res.update(await _nvidia_smi())
+        for k in ("cpuTempC", "gpuTempC", "gpuPercent"):
+            if k in res:
+                shared[k] = res[k]
+        if not logged:
+            log.info("linux temps: %s", res or "no hwmon sensors found")
+            logged = True
+        await asyncio.sleep(interval)
+
+
 def _lhm_thread_main(shared, temps_interval, stop_event):
     """Poll LibreHardwareMonitor over WMI on a dedicated COM-initialized thread.
 
@@ -221,6 +292,7 @@ async def start(state, config, session) -> None:
     # loop reads them and owns the gpu sparkline history, so the deque is never
     # mutated from two threads.
     stop_event = threading.Event()
+    temps_task = None
     if lhm_enabled and HAS_WMI:
         threading.Thread(
             target=_lhm_thread_main,
@@ -228,6 +300,9 @@ async def start(state, config, session) -> None:
             daemon=True,
             name="desko-lhm",
         ).start()
+    elif hasattr(psutil, "sensors_temperatures"):
+        temps_task = asyncio.create_task(_linux_temps_loop(
+            shared, temps_interval, bool(config.get("nvidia_smi", False))))
     elif lhm_enabled and not HAS_WMI:
         log.info("wmi/pywin32 not available -- temps/GPU disabled")
 
@@ -283,3 +358,5 @@ async def start(state, config, session) -> None:
             await asyncio.sleep(interval)
     finally:
         stop_event.set()
+        if temps_task is not None:
+            temps_task.cancel()

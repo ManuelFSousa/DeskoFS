@@ -14,12 +14,14 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import time
 
 from aiohttp import web
 
 from . import context as context_mod
 from . import focus as focus_mod
+from .collectors import apps as apps_mod
 from .collectors import git as git_mod
 from .collectors import lyrics as lyrics_mod
 from .collectors import media as media_mod
@@ -29,6 +31,11 @@ from .collectors import volume as volume_mod
 from .collectors import vscode as vscode_mod
 from .collectors import weather as weather_mod
 from .state import SCENES, State
+
+if sys.platform.startswith("linux"):
+    # MPRIS (playerctl) and PulseAudio/PipeWire (pactl) instead of GSMTC/pycaw.
+    from .collectors import media_linux as media_mod  # noqa: F811
+    from .collectors import volume_linux as volume_mod  # noqa: F811
 
 log = logging.getLogger("desko.server")
 
@@ -45,6 +52,7 @@ def _cors_headers() -> dict:
 
 def create_app(state: State, config: dict, demo: bool = False) -> web.Application:
     app = web.Application()
+    app.on_response_prepare.append(_revalidate_static)
     app["state"] = state
     app["config"] = config
     app["demo"] = demo
@@ -61,11 +69,23 @@ def create_app(state: State, config: dict, demo: bool = False) -> web.Applicatio
     app.router.add_get("/api/proc-icon/{name}", api_proc_icon)
     app.router.add_post("/api/media/{action}", api_media_action)
     app.router.add_route("*", "/api/volume", api_volume)
+    app.router.add_get("/api/app-icon/{id}", api_app_icon)
+    app.router.add_post("/api/apps/{id}/launch", api_app_launch)
     app.router.add_static("/static/", WEB_ROOT, show_index=False)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
     return app
+
+
+async def _revalidate_static(request: web.Request, response: web.StreamResponse) -> None:
+    """Make browsers re-check the page and its JS/CSS on every load (cheap 304s
+    via ETag) so a phone never runs a stale script after an update. Responses
+    that set their own Cache-Control (icons) keep it."""
+    if "Cache-Control" not in response.headers and (
+        request.path == "/" or request.path == "/config" or request.path.startswith("/static/")
+    ):
+        response.headers["Cache-Control"] = "no-cache"
 
 
 # --- routes -----------------------------------------------------------------
@@ -96,6 +116,24 @@ async def api_proc_icon(request: web.Request) -> web.Response:
         content_type="image/png",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+async def api_app_icon(request: web.Request) -> web.Response:
+    """Icon of one launcher entry, looked up by id (never a path from the client)."""
+    res = apps_mod.icon(request.match_info.get("id", ""))
+    if res is None:
+        raise web.HTTPNotFound()
+    body, ctype = res
+    return web.Response(body=body, content_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
+
+
+async def api_app_launch(request: web.Request) -> web.Response:
+    """Launch one configured app by id. The custom header forces a CORS preflight
+    (which we never approve), so other web pages can't trigger launches."""
+    if request.headers.get("X-Desko") != "1":
+        return web.json_response({"error": "missing X-Desko header"}, status=403)
+    ok = await asyncio.to_thread(apps_mod.launch, request.match_info.get("id", ""))
+    return web.Response(status=204) if ok else web.json_response({"error": "unknown app"}, status=404)
 
 
 # Editable via the /config page: (key, json-type, needs-restart-to-apply).
@@ -275,6 +313,12 @@ async def _handle_client_msg(state: State, ws, raw: str) -> None:
             # Unlocking hands control straight back to the context engine —
             # drop any leftover manual override so it doesn't sit there stale.
             state.set_override(None)
+    elif t == "hello":
+        log.info(
+            "client screen: viewport %sx%s, screen %sx%s @%sx, ui scale %s | %s",
+            msg.get("vw"), msg.get("vh"), msg.get("sw"), msg.get("sh"), msg.get("dpr"),
+            msg.get("ui"), str(msg.get("ua", ""))[:120],
+        )
     elif t == "focus":
         focus_mod.apply(state, msg)
     elif t == "perf":
@@ -325,6 +369,8 @@ async def on_startup(app: web.Application) -> None:
         tasks.append(asyncio.create_task(git_mod.start(state, config, app["http_session"])))
         # Focus (Pomodoro) timer — server-authoritative state + auto phase flow.
         tasks.append(asyncio.create_task(focus_mod.start(state, config)))
+        # Apps scene: configured launcher entries (Linux .desktop files / commands).
+        tasks.append(asyncio.create_task(apps_mod.start(state, config)))
         # Context engine drives auto scene switching (fully wired in M5).
         tasks.append(asyncio.create_task(context_mod.start(state, config)))
 

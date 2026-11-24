@@ -31,7 +31,9 @@ Desko.scenes.focus = (function () {
     var rem = remaining(f, now);
     var dur = f.durationSec || 1;
     var frac = Math.max(0, Math.min(1, rem / dur));
-    if (E.ring) E.ring.style.strokeDashoffset = (CIRC * (1 - frac)).toFixed(2);
+    var off = (CIRC * (1 - frac)).toFixed(2);
+    if (E.ring) E.ring.style.strokeDashoffset = off;
+    if (E.glow) E.glow.style.strokeDashoffset = off;
     if (E.time) E.time.textContent = fmt(rem);
     if (E.phase) E.phase.textContent = isBreak ? "BREAK" : "WORK SESSION";
     if (E.state) E.state.textContent = f.running ? (isBreak ? "ON BREAK" : "FOCUSING") : "PAUSED";
@@ -91,6 +93,7 @@ Desko.scenes.focus = (function () {
         scene: document.querySelector('[data-scene="focus"]'),
         state: document.getElementById("f-state"),
         ring: document.getElementById("f-ring"),
+        glow: document.getElementById("f-ring-glow"),
         time: document.getElementById("f-time"),
         phase: document.getElementById("f-phase"),
         cycles: document.getElementById("f-cycles"),
@@ -104,6 +107,7 @@ Desko.scenes.focus = (function () {
         presets: Array.prototype.slice.call(document.querySelectorAll(".focus-preset .preset-btn")),
       };
       if (E.ring) { E.ring.style.strokeDasharray = CIRC.toFixed(2); }
+      if (E.glow) { E.glow.style.strokeDasharray = CIRC.toFixed(2); }
       wire();
       renderStatic(state.focus);
       paint(state.focus, Date.now());
