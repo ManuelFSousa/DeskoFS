@@ -142,19 +142,20 @@ of them is import-guarded. Here is what actually happens on a machine with no Wi
 available, measured rather than assumed by booting the server with `winsdk`, `wmi`,
 `pythoncom`, `pycaw` and `comtypes` blocked at import:
 
-| Feature | Windows | macOS / Linux | Why |
-|---|:--:|:--:|---|
-| Server, WebSocket, scene carousel | ✅ | ✅ | pure Python |
-| Idle: clock, date, weather, battery | ✅ | ✅ | Open-Meteo plus the phone's own Battery API |
-| Focus: Pomodoro | ✅ | ✅ | server-side timer, no OS calls |
-| Stats: CPU %, RAM, network, sparklines | ✅ | ✅ | `psutil` is cross-platform |
-| Stats: CPU/GPU **temperature**, GPU load | ✅ | ❌ | reads LibreHardwareMonitor over WMI |
+| Feature | Windows | Linux | macOS | Why |
+|---|:--:|:--:|:--:|---|
+| Server, WebSocket, scene carousel | ✅ | ✅ | ✅ | pure Python |
+| Idle: clock, date, weather, battery | ✅ | ✅ | ✅ | Open-Meteo plus the phone's own Battery API |
+| Focus: Pomodoro | ✅ | ✅ | ✅ | server-side timer, no OS calls |
+| Stats: CPU %, RAM, network, sparklines | ✅ | ✅ | ✅ | `psutil` is cross-platform |
+| Stats: CPU/GPU **temperature**, GPU load | ✅ | ✅ | ❌ | Windows: LibreHardwareMonitor over WMI. Linux: hwmon via `psutil` (GPU load needs `"nvidia_smi": true`) |
 | **Dev: branch, changes, commit, today** | ✅ | ✅ | plain `git` subprocesses |
 | **Dev: live editor state** | ✅ | ✅ | the VS Code extension is just JS plus HTTP |
-| Music: now playing, album art, lyrics | ✅ | ❌ | Windows GSMTC media session |
-| Music: PC volume slider | ✅ | ❌ | `pycaw` / Core Audio |
-| `http://desko.local` (mDNS) | ✅ | ✅ | `zeroconf` |
-| `--demo` mode | ✅ | ✅ | fabricated data |
+| Music: now playing, album art, lyrics | ✅ | ✅ | ❌ | Windows: GSMTC media session. Linux: MPRIS via `playerctl` |
+| Music: PC volume slider | ✅ | ✅ | ❌ | Windows: `pycaw` / Core Audio. Linux: `pactl` (PulseAudio / PipeWire) |
+| **Apps: launch PC apps from the phone** | ✅ | ✅ | ❌ | Windows: Start Menu shortcuts. Linux: `.desktop` files + icon theme |
+| `http://desko.local` (mDNS) | ✅ | ✅ | ✅ | `zeroconf` |
+| `--demo` mode | ✅ | ✅ | ✅ | fabricated data |
 
 <details>
 <summary><b>What that looks like in practice</b></summary>
@@ -277,6 +278,54 @@ Same green-on-dark identity, same layout, none of the fill-rate cost.
   number while lyrics scroll, because that's where the difference shows, not in the average.
 
 ---
+
+## Linux setup
+
+```bash
+sudo apt install playerctl          # now playing + transport (pactl ships with PulseAudio/PipeWire)
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python run.py
+```
+
+Music works with any MPRIS player (Spotify, browser tabs, VLC...). CPU temperature comes
+from hwmon (`coretemp` / `k10temp`); AMD/nouveau GPU temps too. For an NVIDIA card with the
+proprietary driver set `"nvidia_smi": true` in `config.json` (off by default: on hybrid
+laptops polling can keep the dGPU awake).
+
+## Apps scene
+
+Swipe past Focus to reach a grid of PC apps; tap one to launch it. It is not part of the
+auto rotation. Without configuration it shows common installed apps plus *Lock*. To pick
+your own, add an `"apps"` list to `config.json`:
+
+```json
+"apps": [
+  "firefox",
+  {"app": "Visual Studio Code", "name": "VS Code"},
+  {"name": "Teams", "open": "msteams:", "os": "windows"},
+  {"name": "Lock", "cmd": ["loginctl", "lock-session"], "icon": "system-lock-screen", "os": "linux"},
+  {"name": "Lock", "cmd": ["rundll32.exe", "user32.dll,LockWorkStation"], "os": "windows"}
+]
+```
+
+- A plain string (or `"app"`) is an installed app: a `.desktop` id on Linux (`firefox`,
+  `org.kde.dolphin`, snap/flatpak ids work), a Start Menu shortcut name on Windows
+  (`Spotify`, `File Explorer`; a unique prefix is enough).
+- `"cmd"` runs a fixed command (no shell); `"open"` opens a URI/file/`shell:` target.
+  Store apps with no shortcut: `"open": "shell:AppsFolder\\<AppID>"` (`Get-StartApps` in
+  PowerShell lists the AppIDs).
+- `"os"` limits an entry to `"linux"` or `"windows"`; `"name"`/`"icon"` override the label and
+  icon (an icon-theme name on Linux, or a .png/.svg/.ico/.exe path).
+
+The phone only ever sends the *index* of an entry, never a command, and the endpoint
+rejects cross-site requests, so the list in `config.json` is all it can start.
+
+## Small or old phones
+
+The layout is designed for a ~760x360 CSS-px landscape screen. Smaller screens get the whole
+dashboard scaled down as one block, re-measured on rotation and fullscreen. Fine-tune once
+per device with `?ui=0.85` (smaller) or `?ui=1.1` (bigger); `?ui=reset` goes back to auto.
+The server logs each phone's screen size on connect. Works on Android 5+ with Chrome 95.
 
 ## Configuration
 
